@@ -11,6 +11,10 @@ export default {
   user: {
     isAdmin: undefined
   },
+  chat: {
+    rooms : [],
+    currentRoom: null
+  },
   auth: {
     isLogged: false,
     currentUserUID: null,
