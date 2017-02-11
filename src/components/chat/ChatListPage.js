@@ -56,6 +56,7 @@ export class ChatListPage extends React.Component {
         />
         <input
           type="submit"
+          disabled={this.state.newRoom === ''}
           value="Create"
           className="btn btn-primary"
           onClick={this.onSave}/>
@@ -86,4 +87,4 @@ function mapDispatchToProps(dispatch) {
   };
 }
 
-export default checkAuth(connect(mapStateToProps, mapDispatchToProps)(ChatListPage));
+export default connect(mapStateToProps, mapDispatchToProps)(ChatListPage);

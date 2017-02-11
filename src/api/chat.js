@@ -31,46 +31,57 @@ class ChatApi {
   static roomById(id) {
     return firebase.database().ref(`rooms/${id}`).once('value')
       .then(r => {
-        return {id: r.key, ...r.val()};
+        return {
+          id: r.key,
+          ...r.val(),
+        };
       })
   }
 
   static createRoom(name) {
     return this.roomByName(name).then(room => {
-      console.log("create room", room);
       if (!room) {
         return firebase.database().ref('rooms').push({
           name,
-          members: [],
           createdAt: {".sv": "timestamp"}
         })
       } else return Promise.resolve(room)
     })
   }
 
+  static name() {
+    let currentUser = firebase.auth().currentUser;
+    return currentUser.displayName || `anonymous (${currentUser.email})`;
+  };
+
+
   static postMessage(roomId, message) {
     let currentUser = firebase.auth().currentUser;
     return this.roomById(roomId).then(r => {
       if (r) {
-        console.log('post message', r);
         let payload = {
           message,
-          from: currentUser.displayName || currentUser.email,
-          createdAt: {".sv": "timestamp"}
+          from:  {
+            uid: currentUser.uid,
+            displayName: this.name()
+          },
+          at: {".sv": "timestamp"}
         };
-        return firebase.database().ref(`rooms/${r.id}/messages`).push(payload)
-      } else return Promise.reject()
+        return firebase.database().ref(`channels/${r.id}/messages`).push(payload)
+      } else return Promise.reject(new Error(`room id ${roomId} not found`))
     })
   }
+
 
   static joinRoom(roomName) {
     let currentUser = firebase.auth().currentUser;
     return this.roomByName(roomName).then(r => {
       if (r) {
-        let displayName = currentUser.displayName || 'anonymous';
-        let payload = {displayName};
-        return firebase.database().ref(`rooms/${r.id}/members/${currentUser.uid}`).set(payload).then(_ => r)
-      } else return Promise.reject()
+        let payload = {displayName : this.name()};
+        return firebase.database().ref(`channels/${r.id}/members/${currentUser.uid}`).set(payload)
+          .then(_ => this.postMessage(r.id, `${this.name()} entered the room`))
+          .then(_ => r)
+      } else return Promise.reject(new Error(`room ${roomName} not found`))
     })
   }
 
@@ -78,10 +89,18 @@ class ChatApi {
     let currentUser = firebase.auth().currentUser;
     return this.roomById(roomId).then(r => {
       if (r) {
-        return firebase.database().ref(`rooms/${r.id}/members/${currentUser.uid}`).remove().then(_ => r)
-      } else Promise.reject()
+        return firebase.database().ref(`channels/${r.id}/members/${currentUser.uid}`).remove()
+          .then(_ => this.postMessage(r.id, `${this.name()} left the room`))
+          .then(_ => r)
+      } else return Promise.reject(new Error(`room id ${roomId} not found`))
     })
+  }
 
+  static streamMessages(roomId) {
+    return firebase.database().ref(`channels/${roomId}/messages`).limitToLast(10)
+  }
+  static streamMembers(roomId) {
+    return firebase.database().ref(`channels/${roomId}/members`)
   }
 }
 

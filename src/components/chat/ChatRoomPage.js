@@ -12,7 +12,10 @@ export class ChatRoomPage extends React.Component {
     super(props, context);
 
     this.state = {
-      loadingRoom : true
+      loadingRoom : true,
+      messagesRef: null,
+      membersRef: null,
+      nextMessage: ''
     };
   }
 
@@ -20,9 +23,22 @@ export class ChatRoomPage extends React.Component {
     this.joinRoom()
   }
 
+  componentWillUnmount() {
+    if (this.props.room) {
+      this.props.actions.leaveRoom(this.props.room.id).then(_ => {
+        this.state.membersRef.off();
+        this.state.membersRef.off();
+      })
+    }
+  }
+
   joinRoom = () => {
     this.setState({loadingRoom : true});
-    this.props.actions.joinRoom(this.props.params.room).then(this.endLoading, this.endLoading);
+    this.props.actions.joinRoom(this.props.params.room)
+      .then(refs => {
+        let [messagesRef, membersRef] = refs;
+        this.setState({loadingRoom: false, messagesRef, membersRef});
+      })
   };
 
   leaveRoom = (event) => {
@@ -32,13 +48,31 @@ export class ChatRoomPage extends React.Component {
     })
   };
 
-  endLoading = () => {
-    this.setState({loadingRoom: false});
+  onMessage = (event) => {
+    event.preventDefault();
+    this.setState({nextMessage: event.target.value})
+  };
+
+  clearMessage = () => {
+    this.setState({nextMessage: ''})
+  };
+
+  submitMessage = () => {
+    this.props.actions.postMessage(this.props.room.id, this.state.nextMessage).then( _ =>
+      this.clearMessage()
+    )
   };
 
   render() {
     return (
-      <ChatRoom room={this.props.room} onLeave={this.leaveRoom}/>
+      this.props.room ?
+        <ChatRoom {...this.props.room}
+                  onLeave={this.leaveRoom}
+                  onMessage={this.onMessage}
+                  onSubmitMessage={this.submitMessage}
+                  canSubmit={this.state.nextMessage != ''}
+                  pendingMessage={this.state.nextMessage}
+        /> : <span>Loading</span>
     );
   }
 }
@@ -61,8 +95,8 @@ function mapStateToProps(state, ownProps) {
 
 function mapDispatchToProps(dispatch) {
   return {
-    actions: bindActionCreators({joinRoom, postMessage, leaveRoom }, dispatch)
+    actions: bindActionCreators({joinRoom, postMessage, leaveRoom}, dispatch)
   };
 }
 
-export default checkAuth(connect(mapStateToProps, mapDispatchToProps)(ChatRoomPage));
+export default connect(mapStateToProps, mapDispatchToProps)(ChatRoomPage);
