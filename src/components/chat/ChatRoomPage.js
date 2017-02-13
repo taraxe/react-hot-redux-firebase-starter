@@ -27,7 +27,7 @@ export class ChatRoomPage extends React.Component {
     if (this.props.room) {
       this.props.actions.leaveRoom(this.props.room.id).then(_ => {
         this.state.membersRef.off();
-        this.state.membersRef.off();
+        this.state.messagesRef.off();
       })
     }
   }
